@@ -1,0 +1,225 @@
+<!DOCTYPE html>
+<meta charset="utf-8">
+<style>
+
+.links line {
+  stroke: #999;
+  stroke-opacity: 0.6;
+}
+
+.nodes circle {
+  stroke: red	;
+  stroke-width: 0px;
+  fill: rebeccapurple;
+}
+
+.svg-container {
+  position: relative;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+}
+
+.img-container {
+  position: relative;
+  top: 600;
+  left: 0;
+}
+
+svg#img
+{
+  display: block;
+  margin:0 auto;
+  align:center;
+}
+
+img
+{
+  width:100%;
+  height:100%;
+}
+
+
+
+svg {
+  border:1px solid black;
+}
+</style>
+<div class="svg-container">
+  <svg width="800" height="400" id="graph"></svg>
+</div>
+<div class="img-container" id="img">
+  <svg width="500" height="500" id="img"></svg>
+</div>
+<script src="https://d3js.org/d3.v4.min.js"></script>
+<script>
+//create somewhere to put the force directed graph
+var svg = d3.select("svg#graph"),
+    width = +svg.attr("width"),
+    height = +svg.attr("height");
+
+var div_img = d3.select("svg#img");
+
+var radius = 15; 
+
+var simulation = d3.forceSimulation();
+
+d3.json("https://raw.githubusercontent.com/billy-mosse/xkcd/main/data_min_weight_6.json", function(error, graph) {
+  if (error) throw error;
+
+//TODO agregar random
+  var START = Math.floor(Math.random() * Math.floor(graph.nodes.length - 300));
+  var END = START + 300;
+
+  console.log(START);
+
+  
+
+  graph.links = graph.links.filter( link => 
+    (link.source >= START && link.target >= START)
+    &&
+    (link.source < END && link.target < END)
+  
+  );
+
+  source_ids = graph.links.map( link => link.source);
+  target_ids = graph.links.map( link => link.target);
+
+  graph.nodes = graph.nodes.filter( node => source_ids.includes(node.id) || target_ids.includes(node.id));
+  
+
+  
+  /*graph.links.forEach(function(d){
+    d.source = d.source;    
+    d.target = d.target;
+    d.weight = d.weight;
+  });       
+
+  graph.nodes.forEach(function(n){
+    n.id = n.id;    
+    n.name = n.name;
+    n.degree = n.degree
+  });     */      
+
+//set up the simulation 
+simulation
+					//add nodes
+					.nodes(graph.nodes);
+                    
+                  
+        
+var link_force =  d3.forceLink(graph.links)
+                        .id(function(d) { return d.id; });            
+            
+var charge_force = d3.forceManyBody()
+    .strength(-100);
+    
+var center_force = d3.forceCenter(width / 2, height / 2);  
+                        
+simulation
+    .force("charge_force", charge_force)
+    .force("center_force", center_force)
+    .force("links",link_force);
+
+        
+//add tick instructions: 
+simulation.on("tick", tickActions );
+
+//draw lines for the links 
+var link = svg.append("g")
+      .attr("class", "links")
+    .selectAll("line")
+    .data(graph.links)
+    .enter().append("line")
+      .attr("stroke-width", 2);    
+
+var link_label = svg.append("g")
+    .attr("class", "labels")
+    .selectAll("text")
+    .data(graph.links)
+    .enter().append("text")
+      .attr("class", "link_label")
+      .text(function(d) { return d.words; });
+
+//draw circles for the nodes 
+var node = svg.append("g")
+        .attr("class", "nodes") 
+        .selectAll("circle")
+        .data(graph.nodes)
+        .enter()
+        .append("circle")
+        .attr("r", radius);  
+
+node.on("click", function(node) {
+    console.log(node.x);
+    console.log(node.y);
+    console.log(node.name);
+    console.log()
+    div_img.selectAll("image").remove();
+    var myimage = div_img.append("image")
+      .attr("xlink:href", "https://raw.githubusercontent.com/billy-mosse/xkcd/main/images/" + node.name + ".png")
+      .attr('width', "100%")
+      .attr('height', "100%")
+      .attr('x', 0)
+      .attr('y', 0)
+  
+    d3.event.stopPropagation();
+  });
+
+var drag_handler = d3.drag()
+	.on("start", drag_start)
+	.on("drag", drag_drag)
+	.on("end", drag_end);	
+	
+drag_handler(node)
+
+
+
+    
+
+function tickActions() {
+    //constrains the nodes to be within a box
+      node
+        .attr("cx", function(d) { return d.x = Math.max(radius, Math.min(width - radius, d.x)); })
+        .attr("cy", function(d) { return d.y = Math.max(radius, Math.min(height - radius, d.y)); })
+        .attr("r", function(d) { return d.degree ** 0.4});
+        
+    link
+        .attr("x1", function(d) { return d.source.x; })
+        .attr("y1", function(d) { return d.source.y; })
+        .attr("x2", function(d) { return d.target.x; })
+        .attr("y2", function(d) { return d.target.y; });
+
+    link_label
+    		.attr("x", function(d) { return (d.source.x + d.target.x)/2; })
+        .attr("y", function (d) { return (d.source.y + d.target.y)/2; })
+        .style("font-size", "8px").style("fill", "#4393c3");
+} 
+
+});
+
+
+
+//drag handler
+//d is the node 
+function drag_start(d) {
+ if (!d3.event.active) simulation.alphaTarget(0.3).restart();
+    d.fx = d.x;
+    d.fy = d.y;
+}
+
+function drag_drag(d) {
+  d.fx = d3.event.x;
+  d.fy = d3.event.y;
+}
+
+
+function drag_end(d) {
+  if (!d3.event.active) simulation.alphaTarget(0);
+  d.fx = null;
+  d.fy = null;
+}
+
+
+</script>
