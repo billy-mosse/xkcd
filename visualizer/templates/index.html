@@ -75,13 +75,12 @@ d3.json("https://raw.githubusercontent.com/billy-mosse/xkcd/main/data_min_weight
   console.log(START);
 
   
-
-  graph.links = graph.links.filter( link => 
-    (link.source >= START && link.target >= START)
-    &&
-    (link.source < END && link.target < END)
-  
-  );
+  //I cannot use anpersands to do it in 1 line because wordpress treats javascript code as plain text.
+  //I walk a dangerous path.
+  graph.links = graph.links.filter( link => link.source >= START);
+  graph.links = graph.links.filter( link => link.source < END);
+  graph.links = graph.links.filter( link => link.target >= START);
+  graph.links = graph.links.filter( link => link.target < END);
 
   source_ids = graph.links.map( link => link.source);
   target_ids = graph.links.map( link => link.target);
